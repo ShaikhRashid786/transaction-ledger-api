@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Transaction Ledger API – Interactive Tester</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 24px; }
+    h1 { margin-top: 0; color: #38bdf8; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+    .card { background: #1e293b; padding: 16px; border-radius: 10px; border: 1px solid #334155; }
+    .card h3 { margin-top: 0; color: #fbbf24; font-size: 16px; }
+    input, select, button { width: 100%; padding: 8px 10px; margin: 6px 0; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: white; box-sizing: border-box; }
+    button { background: #2563eb; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; }
+    button:hover { background: #1d4ed8; }
+    pre { background: #020617; padding: 14px; border-radius: 8px; border: 1px solid #334155; overflow-x: auto; color: #4ade80; font-size: 13px; max-height: 300px; }
+  </style>
+</head>
+<body>
+  <h1>Transaction Ledger API – Live Tester</h1>
+  <p>Account ID from your first test: <code>1da15b9d-2c11-44e3-b6ae-2d7c55387abc</code></p>
+
+  <div class="grid">
+    <!-- 1. Create Account -->
+    <div class="card">
+      <h3>1. Create Account (POST /accounts)</h3>
+      <input id="accName" placeholder="Account Holder Name (e.g. Ayesha)" />
+      <button onclick="createAccount()">Create Account</button>
+    </div>
+
+    <!-- 2. Add Transaction -->
+    <div class="card">
+      <h3>2. Add Transaction (POST /transactions)</h3>
+      <input id="txAccId" placeholder="Account ID" value="1da15b9d-2c11-44e3-b6ae-2d7c55387abc" />
+      <select id="txType">
+        <option value="credit">Credit (+ Add Money)</option>
+        <option value="debit">Debit (- Deduct Money)</option>
+      </select>
+      <input id="txAmount" type="number" step="0.01" placeholder="Amount (e.g. 100)" />
+      <input id="txDesc" placeholder="Description (e.g. Deposit)" />
+      <input id="txRef" placeholder="Unique Reference ID (e.g. ref_101)" />
+      <button onclick="addTransaction()">Submit Transaction</button>
+    </div>
+
+    <!-- 3. Get Balance -->
+    <div class="card">
+      <h3>3. Get Balance (GET /accounts/:id/balance)</h3>
+      <input id="balAccId" placeholder="Account ID" value="1da15b9d-2c11-44e3-b6ae-2d7c55387abc" />
+      <button onclick="getBalance()">Check Balance</button>
+    </div>
+
+    <!-- 4. Get Transaction History -->
+    <div class="card">
+      <h3>4. Get History (GET /accounts/:id/transactions)</h3>
+      <input id="histAccId" placeholder="Account ID" value="1da15b9d-2c11-44e3-b6ae-2d7c55387abc" />
+      <select id="histType">
+        <option value="">All Types (Credit & Debit)</option>
+        <option value="credit">Only Credit</option>
+        <option value="debit">Only Debit</option>
+      </select>
+      <input id="histPage" type="number" value="1" placeholder="Page (1)" />
+      <input id="histLimit" type="number" value="5" placeholder="Limit per page (5)" />
+      <button onclick="getHistory()">Fetch History</button>
+    </div>
+
+    <!-- 5. Bonus: Transfer Money -->
+    <div class="card">
+      <h3>5. Bonus: Transfer Money (POST /transfers)</h3>
+      <input id="trFrom" placeholder="From Account ID" value="1da15b9d-2c11-44e3-b6ae-2d7c55387abc" />
+      <input id="trTo" placeholder="To Account ID (Create a 2nd account first)" />
+      <input id="trAmount" type="number" step="0.01" placeholder="Amount (e.g. 30)" />
+      <input id="trRef" placeholder="Unique Reference ID (e.g. tr_001)" />
+      <button onclick="transferMoney()">Transfer Money</button>
+    </div>
+  </div>
+
+  <h3>Live API Response (Status & JSON):</h3>
+  <pre id="output">Click any button above to test the API...</pre>
+
+  <script>
+    async function callApi(url, options = {}) {
+      const res = await fetch(url, options);
+      const data = await res.json();
+      document.getElementById('output').textContent =
+        `HTTP Status: ${res.status}\n\n` + JSON.stringify(data, null, 2);
+    }
+
+    function createAccount() {
+      callApi('/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: document.getElementById('accName').value })
+      });
+    }
+
+    function addTransaction() {
+      callApi('/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          account_id: document.getElementById('txAccId').value,
+          type: document.getElementById('txType').value,
+          amount: Number(document.getElementById('txAmount').value),
+          description: document.getElementById('txDesc').value,
+          reference_id: document.getElementById('txRef').value
+        })
+      });
+    }
+
+    function getBalance() {
+      const id = document.getElementById('balAccId').value;
+      callApi(`/accounts/${id}/balance`);
+    }
+
+    function getHistory() {
+      const id = document.getElementById('histAccId').value;
+      const type = document.getElementById('histType').value;
+      const page = document.getElementById('histPage').value;
+      const limit = document.getElementById('histLimit').value;
+      const query = new URLSearchParams({ page, limit, ...(type && { type }) });
+      callApi(`/accounts/${id}/transactions?${query}`);
+    }
+
+    function transferMoney() {
+      callApi('/transfers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from_account_id: document.getElementById('trFrom').value,
+          to_account_id: document.getElementById('trTo').value,
+          amount: Number(document.getElementById('trAmount').value),
+          reference_id: document.getElementById('trRef').value
+        })
+      });
+    }
+  </script>
+</body>
+</html>
